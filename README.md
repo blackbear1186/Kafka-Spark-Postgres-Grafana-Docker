@@ -4,7 +4,8 @@ This project is a streaming data pipeline base on the Finnhub.io API/websocket r
 
 ### Architecture
 
-<img width="1073" alt="Finnhub " src="https://github.com/blackbear1186/Stock_Market_Streamer/assets/64313785/dab18bfc-8ec6-4d0a-b24b-2354b21c8947">
+<img width="1073" alt="Finnhub " src="https://github.com/blackbear1186/Kafka-Spark-Postgres-Grafana-Docker-Streaming-App/assets/64313785/68b1f8c7-dde4-43f4-9f20-a05897d626c9">
+
 
 All applications are containerized into Docker containers using a docker-compose yaml to provide build the containers. 
 
