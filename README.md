@@ -17,7 +17,10 @@ All applications are containerized into Docker containers using a docker-compose
 
 **Serving database layer** - a Postgresql database stores & persists data from Spark jobs. Grafana metadata is stored in Postgresql database. 
 
-**Visualization layer** - Grafana connects to Postgresql database using and serves visualized data to users as in example of Finnhub Sample BTC Dashboard. 
+**Visualization layer** - Grafana connects to Postgresql database using and serves visualized data to users as in example of Finnhub Sample BTC Dashboard. In addition, Grafana connects to Prometheus to monitor Postgresql database metrics.
+
+![Screen Shot 2023-09-05 at 23 43 03](https://github.com/blackbear1186/Kafka-Spark-Postgres-Grafana-Docker-Streaming-App/assets/64313785/b4078eec-8002-4ea2-942a-adbf7b3fb743)
+
 
 ![Screen Shot 2023-09-06 at 0 27 25](https://github.com/blackbear1186/Kafka-Spark-Postgres-Grafana-Docker-Streaming-App/assets/64313785/ebb9fd8d-e518-4c36-ac75-d83852c63789)
 
