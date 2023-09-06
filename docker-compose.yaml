@@ -1,0 +1,211 @@
+version: "3.8"
+services:
+  nginx:
+    #nginx:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: always
+    container_name: nginx
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:6.0.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:6.0.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    expose:
+      - "29092"
+    healthcheck:
+      test: nc -z localhost 9092 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: kafka:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+
+  kafka-init:
+    image: confluentinc/cp-kafka:6.0.0
+    container_name: kafka-init
+    depends_on:
+      - kafka
+    entrypoint: ['/bin/sh','-c']
+    command: |
+      "
+      # blocks until kafka is reachable
+      echo -e 'Creating kafka topics'
+      kafka-topics --bootstrap-server kafka:29092 --create --topic stocks --replication-factor 1 --partitions 1
+
+      "
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:3.27.0
+    container_name: kafdrop
+    restart: always
+    healthcheck:
+      test: curl --fail http://localhost:19000 || exit -1
+      start_period: 5s
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - kafka
+      - zookeeper
+    ports:
+      - "19000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: kafka:29092
+
+  finnhubproducer:
+    build:
+      context: ./finnhubproducer
+      dockerfile: Dockerfile
+    container_name: finnhubproducer
+    ports:
+      - "8010:80"
+    depends_on:
+      - kafka-init
+
+  spark-master:
+    container_name: da-spark-master
+    build: 
+      context: ./streamer
+      dockerfile: Dockerfile
+    image: da-spark-image
+    entrypoint: ["./entrypoint.sh", "master"]
+    healthcheck:
+      test: ["CMD", "curl","-f", "http://localhost:8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - spark-logs:/opt/spark/spark-events
+    env_file:
+      - ./streamer/.env.spark
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+  
+  spark-history-server:
+    container_name: da-spark-history
+    image: da-spark-image
+    entrypoint: ["./entrypoint.sh", "history"]
+    depends_on:
+      - spark-master
+    env_file:
+      - ./streamer/.env.spark
+    volumes:
+      - spark-logs:/opt/spark/spark-events
+    ports:
+      - '18080:18080'
+
+  spark-worker:
+    container_name: da-spark-worker
+    image: da-spark-image
+    entrypoint: ["./entrypoint.sh", "worker"]
+    depends_on:
+      - spark-master
+    env_file:
+      - ./streamer/.env.spark
+    volumes:
+      - spark-logs:/opt/spark/spark-events
+
+  postgres:
+    image: postgres
+    container_name: postgresql
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+   
+
+  pgadmin4:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin4
+    restart: always
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: berlin.j.1186@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: password
+    volumes:
+      - pgadmin_data2:/var/lib/pgadmin4
+    depends_on:
+      - postgres
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    environment:
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: postgresql:5432
+      GF_DATABASE_NAME: grafana
+      GF_DATABASE_USER: postgres
+      GF_DATABASE_PASSWORD: password
+      GF_DATABASE_SSL_MODE: disable
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana:/var/lib/grafana
+    
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9091:9090"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:password@postgresql:5432/postgres?sslmode=disable"
+    links:
+      - postgres
+      - prometheus
+    ports:
+      - "9187:9187"
+
+
+volumes:
+  spark-logs:
+  postgres_data:
+  pgadmin_data2:
+  grafana:
+    
+
