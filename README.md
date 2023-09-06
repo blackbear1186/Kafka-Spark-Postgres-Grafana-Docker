@@ -19,3 +19,9 @@ All applications are containerized into Docker containers using a docker-compose
 
 **Visualization layer** - Grafana connects to Postgresql database using and serves visualized data to users as in example of Finnhub Sample BTC Dashboard. 
 
+![Screen Shot 2023-09-06 at 0 27 25](https://github.com/blackbear1186/Kafka-Spark-Postgres-Grafana-Docker-Streaming-App/assets/64313785/ebb9fd8d-e518-4c36-ac75-d83852c63789)
+
+
+![Screen Shot 2023-09-06 at 0 28 51](https://github.com/blackbear1186/Kafka-Spark-Postgres-Grafana-Docker-Streaming-App/assets/64313785/3f79de19-1818-4c90-812b-07363fce452e)
+
+
